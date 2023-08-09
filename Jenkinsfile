@@ -71,34 +71,34 @@ pipeline {
             }
         }
 
-    }
-    stage('Build docker app image') {
-        steps {
-            script {
-                dockerImage = docker.build registry + ":V$BUILD_NUMBER"
-            }
-        }
-    }
-    stage("Upload the image") {
-        steps {
-            script {
-                docker.withRegistry('', registryCredential) {
-                    dockerImage.push("V$BUILD_NUMBER")
-                    dockerImage.push('latest')
+    
+        stage('Build docker app image') {
+            steps {
+                script {
+                    dockerImage = docker.build registry + ":V$BUILD_NUMBER"
                 }
             }
         }
-    }
-    stage("Remove the Docker image") {
-        steps {
-            sh "docker rmi $registry:V$BUILD_NUMBER"
+        stage("Upload the image") {
+            steps {
+                script {
+                    docker.withRegistry('', registryCredential) {
+                        dockerImage.push("V$BUILD_NUMBER")
+                        dockerImage.push('latest')
+                    }
+                }
+            }
+        }
+        stage("Remove the Docker image") {
+            steps {
+                sh "docker rmi $registry:V$BUILD_NUMBER"
+            }
+        }
+        stage('Kubernetes deploy') {
+            agent {label 'KOPS'}
+                steps {
+                    sh "helm upgrade --install --force vprofile-stack helm/vprofilecharts --set appimage=${registry}:V${BUILD_NUMBER} --namespace prod"
+                }
         }
     }
-    stage('Kubernetes deploy') {
-        agent {label 'KOPS'}
-            steps {
-                sh "helm upgrade --install --force vprofile-stack helm/vprofilecharts --set appimage=${registry}:V${BUILD_NUMBER} --namespace prod"
-            }
-    }
-
 }
